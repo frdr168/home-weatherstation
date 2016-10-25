@@ -1,0 +1,148 @@
+================================================== iot air quality =============================
+// Revision 1.1 (2016-04-27)
+// Fix data 
+// Revision 1.0 (2016-04-18)
+// Fix data 'None' from spreadsheet on  data[i][1] = tmpdata[i][2];data[i][2] = tmpdata[i][3];
+
+var SPID="1IulphJt8fQQDymEt1jOnM4sI4-iuyxB1fz1iT6SGVXE";
+
+function doGet(request) {
+  //return getMyData()
+  return HtmlService.createTemplateFromFile('IotPage')
+      .evaluate()
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename)
+      .getContent();
+}
+
+function getMyData(){
+  var sheet  = SpreadsheetApp.openById(SPID).getSheets()[1];
+  if(sheet == null) return HtmlService.createHtmlOutput("No Sheet");
+  var tmpdata = sheet.getDataRange().getValues();
+  var data = new Array;
+  data[0] = new Array(2);
+  data[0][0] = tmpdata[0][1];
+  data[0][1] = tmpdata[0][3];
+  for (i=1; i<tmpdata.length;i++) {
+         if ( is_empty(String(tmpdata[i][0])) ) {
+              break;
+         } else {
+              data[i] = new Array(2);
+              data[i][0] = fmt_date(String(tmpdata[i][1]));
+              data[i][1] = ( ( is_empty(tmpdata[i][3]) ) ? 0 : tmpdata[i][3]);
+         }
+  }
+  //return HtmlService.createHtmlOutputFromFile(data);
+  return data;
+}
+
+function fmt_date(d) {
+      var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      if (is_empty(d)) {
+            return 'None'
+      } else {
+            var df = String(d).split(' ');
+            var dd = ((df[2].length == 1) ? '0'+df[2] : df[2]);
+            var tm = (months.indexOf(df[1])+1).toString();
+            var mm = ((tm.length == 1) ? '0'+tm : tm);
+            return String(dd) + '/' + String(mm) + '/' + String(df[3]) + ' ' + String(df[4]);
+      }
+}
+
+function is_empty(d) {
+  if (d == '' || d == null || String(d) === 0)
+    return true
+  else
+    return false
+}
+
+================================================== IotPage.html =============================
+
+<!DOCTYPE html>
+<html>
+     <head>
+         <base target="_top">
+          <style>
+                 table, th, td {
+                        border: 1px solid black;
+                        border-collapse: collapse;
+                 }
+          </style>
+          <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.2/jquery.min.js"></script>
+          <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+     </head>
+     <body>
+     <div id="headtitle" style="float:left;">Air Quality Detail</div><div id='update' style='cursor:pointer'>&nbsp;&nbsp;--Refresh chart</div>
+     <br>
+     <div id="data_div" style="width:250px; height: 500px; float:left;"></div>
+     <div id="chart_div" style="width: 500px; height: 500px;float:left;"></div>
+     <div id="msg_div" style="width: 600px; height: 500px; display:none;"></div>
+
+<script type="text/javascript">
+    var datas=google.script.run.withSuccessHandler(onSuccess).getMyData();
+    google.load("visualization", "1", {packages:["corechart", "table", 'gauge', 'line']}); 
+    
+    function drawchat(options) {
+      var datatbl = new google.visualization.DataTable();
+      var numRows = options[1].length;
+      var numCols = options[1][0].length;
+      for (var i = 0; i < numRows; i++) {
+             if (i == 0) {
+                   datatbl.addColumn(typeof(options[1][1][0]), options[1][0][0]);
+                   datatbl.addColumn(typeof(options[1][1][1]), options[1][0][1].substring(0, 4));
+             } else {
+                   datatbl.addRow(options[1][i]);
+             }
+      }
+ 
+      switch (options[0]) {
+             case "line":
+               var chart = new google.visualization.LineChart(document.getElementById(options[2]));
+               chart.draw(datatbl, options[3]);
+               break;
+             case "table":
+               datatbl.setProperty(0, 0, 'style', 'width:100px');
+               datatbl.setProperty(0, 1, 'style', 'width:30px');
+               var table = new google.visualization.Table(document.getElementById(options[2]));
+               table.draw(datatbl, options[3]);
+               break;
+        }
+    }
+    
+    function onSuccess(datas) {
+    if(datas == null)
+       $("#headtitle").html("Oooops!! Something went wrong! Cannot able to connect to Google Drive!");
+    else {
+      var ddata = datas;
+      //console.log('ddata '+ddata.length +' ' + ddata+'|');
+      }
+      //$("#msg_div").html(ddata.toString());
+      var chartoptions=new Array();
+      chartoptions[0]=new Array(4);
+      chartoptions[0][0]='line';
+      chartoptions[0][1]=ddata;
+      chartoptions[0][2]='chart_div';
+      chartoptions[0][3]={ hAxis: { title: 'Date&Time' }, vAxis: { title: 'PPM' }, backgroundColor: '' };
+      drawchat(chartoptions[0]);
+      chartoptions[1]=new Array(4);
+      chartoptions[1][0]='table';
+      chartoptions[1][1]=ddata;
+      chartoptions[1][2]='data_div';
+      chartoptions[1][3]={ showRowNumber: false, width: '100%', height: '100%', allowHtml: true };
+      drawchat(chartoptions[1]);
+    }
+        
+   $(document).ready(function(){
+    //On button click, load new data
+          $("#update").click(function(){
+                 var datas=google.script.run.withSuccessHandler(onSuccess).getMyData();
+                 console.log('click');
+          });
+   })
+    
+</script>
+</body>
+</html>

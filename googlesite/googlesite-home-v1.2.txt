@@ -1,0 +1,196 @@
+============================================================ home.html ===================
+// Revision 1.2 (2016-04-28)
+// Add org chart
+// Revision 1.1 (2016-04-27)
+// Fix return sheet 1 & data
+// Revision 1.0 (2016-04-18)
+// Fix data 'None' from spreadsheet on  data[i][1] = tmpdata[i][2];data[i][2] = tmpdata[i][3];
+// Revision 1.1 (2016-04-19)
+// Fix sandboxmode
+
+var SPID="1IulphJt8fQQDymEt1jOnM4sI4-iuyxB1fz1iT6SGVXE";
+
+function doGet(request) {
+  return HtmlService.createTemplateFromFile('home')
+      .evaluate()
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename)
+      .getContent();
+}
+
+function getMyData(){
+  var sheet0  = SpreadsheetApp.openById(SPID).getSheets()[0];
+  if(sheet0 == null) return HtmlService.createHtmlOutput("No Sheet");
+  var tmpdata0 = sheet0.getDataRange().getValues();
+  var thdata = new Array;
+  thdata[0] = new Array(3);
+  thdata[0][0] = tmpdata0[0][1];
+  thdata[0][1] = tmpdata0[0][2];
+  thdata[0][2] = tmpdata0[0][3];
+  for (var i=1; i<tmpdata0.length;i++) {
+         if ( is_empty(String(tmpdata0[i][1])) ) {
+              break;
+         } else {
+              thdata[i] = new Array(3);
+              thdata[i][0] = fmt_date(String(tmpdata0[i][1]))
+              thdata[i][1] = ( (is_empty(tmpdata0[i][2])) ? 0 : tmpdata0[i][2]);
+              thdata[i][2] = ( (is_empty(tmpdata0[i][3])) ? 0 : tmpdata0[i][3]);
+         }
+  }
+  
+  var sheet1 = SpreadsheetApp.openById(SPID).getSheets()[1];
+  if(sheet1 == null) return HtmlService.createHtmlOutput("No Sheet");
+  var tmpdata1 = sheet1.getDataRange().getValues();
+  var aqdata = new Array;
+  aqdata[0] = new Array(2);
+  aqdata[0][0] = tmpdata1[0][1];
+  aqdata[0][1] = tmpdata1[0][3];
+  for (var k=1; k<tmpdata1.length;k++) {
+         if ( is_empty(String(tmpdata1[k][1])) ) {
+              break;
+         } else {
+              aqdata[k] = new Array(2);
+              aqdata[k][0] = fmt_date(String(tmpdata1[k][1]));
+              aqdata[k][1] = ( (is_empty(tmpdata1[k][3])) ? 0 : tmpdata1[k][3]);
+         }
+  }
+  return {
+    thdata: thdata,
+    aqdata: aqdata
+  }
+}
+
+function fmt_date(d) {
+      var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      if (is_empty(d)) {
+            return 'None'
+      } else {
+            var df = String(d).split(' ');
+            var dd = ((df[2].length == 1) ? '0'+df[2] : df[2]);
+            var tm = (months.indexOf(df[1])+1).toString();
+            var mm = ((tm.length == 1) ? '0'+tm : tm);
+            return String(dd) + '/' + String(mm) + '/' + String(df[3]) + ' ' + String(df[4]);
+      }
+}
+
+function is_empty(d) {
+  if (d == '' || d == null || String(d) === 0)
+    return true
+  else
+    return false
+}
+
+============================================================ home.html ===================
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.2/jquery.min.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  </head>
+  <body>
+  <div style='float:left;'>Weather Station</div><div id="update" style="cursor:pointer">&nbsp;&nbsp;--update</div>
+  <br>
+  <div id="desp" style="width:350px; float:left">
+       <div id="org_div"></div>
+  </div>
+  <div style="float:left">
+       <table>
+             <tr>
+                <td colspan="2" align="center"><div id='sensor1_div' style="vertical-align: middle;"></div></td>
+                <td align="center"><div id='sensor2_div' style="width:140px; vertical-align: middle;"></div></td>
+             </tr>
+             <tr>
+                <td colspan="2" align="center"><div id="lasttptime_div" style="vertical-align: middle;"></div></td>
+                <td><div id="lastaqtime_div" style="vertical-align: middle;"></div></td>
+             </tr>
+             <tr>
+                <td><div id="gauge_temp_div" style="width:140px; height: 140px;"></div></td>
+                <td><div id="gauge_humid_div" style="width:140px; height: 140px;"></div></td>
+                <td><div id="gauge_airquality_div" style="width:140px; height: 140px;"></div></td>
+             </tr>
+             <tr>
+                <td align="center"><div id='desc_gauge_temp_div'></div></td>
+                <td align="center"><div id='desc_gauge_humid_div'></div></td>
+                <td align="center"><div id='desc_gauge_airquality_div'></div></td>
+       </table>
+  </div>
+  
+<script>
+   var datas=google.script.run.withSuccessHandler(onSuccess).getMyData();
+   google.load("visualization", "1", {packages:['corechart', 'table', 'gauge', 'line','orgchart']}); 
+ 
+    function drawgaugechart(chattype,chatoptions,target_divs) {
+             for (var i=0;i<target_divs.length;i++) {
+                    var chatdatatbl = google.visualization.arrayToDataTable(chatoptions[i][0]);
+                    var gauge = new google.visualization.Gauge(document.getElementById(target_divs[i]));
+                    gauge.draw(chatdatatbl, chatoptions[i][1]);
+              }
+              
+    }
+    
+    function draworgchart(target_divs) {
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Name');
+        data.addColumn('string', 'Manager');
+        data.addColumn('string', 'ToolTip');
+        data.addRows([
+          [{v:'home', f:'Home'},'', 'web server'],
+          [{v:'node1', f:'Node1'},'home', ''],
+          [{v:'node2', f:'Node2'},'home', ''],
+          [{v:'raspberrypi',f:'Raspberry Pi'}, 'node1', 'device'],
+          [{v:'dht11',f:'DHT11'}, 'raspberrypi', 'sensor'],
+          [{v:'arduino',f:'arduino'}, 'raspberrypi', 'device'],
+          [{v:'mq135',f:'MQ135'}, 'arduino', 'sensor']
+        ]);
+        var chart = new google.visualization.OrgChart(document.getElementById(target_divs[0]));
+        chart.draw(data, {allowHtml:true,tooltip: {isHtml: true}});
+   }
+    
+   function onSuccess(datas) {
+    if(datas == null)
+       $("#lastupdatetime_div").html("Oooops!! Something went wrong! Cannot able to connect to Google Drive!");
+    else {
+       var dtemphmudidata = datas.thdata;
+       var daqdata = datas.aqdata;
+       //console.log('dtemphmudidata :'+dtemphmudidata.toString());
+       //console.log('daqdata :'+daqdata.toString()+'|'+daqdata.length.toString());
+      }
+      var tmpoptions=new Array();
+      tmpoptions[0]=new Array(2);
+      tmpoptions[0][0]=[['Temp','Value'],['',dtemphmudidata[dtemphmudidata.length-1][1]]];
+      tmpoptions[0][1]={min: 0, max: 100, yellowFrom: 25, yellowTo: 30, redFrom: 30, redTo: 100, minorTicks: 5, hAxis: {title:'ABC'}};
+      tmpoptions[1]=new Array(2);
+      tmpoptions[1][0]=[['Humi','Value'],['',dtemphmudidata[dtemphmudidata.length-1][2]]];
+      tmpoptions[1][1]={min: 0, max: 100, yellowFrom: 40, yellowTo: 65, redFrom: 0, redTo: 40, minorTicks: 5};
+      tmpoptions[2]=new Array(2);
+      tmpoptions[2][0]=[['AQ','Value'],['',daqdata[daqdata.length-1][1]]];
+      tmpoptions[2][1]={min: 0, max: 500, yellowFrom: 200, yellowTo: 400, redFrom: 400, redTo: 1000, minorTicks: 50};
+      $('#sensor1_div').html('Sensor 1');
+      $('#sensor2_div').html('Sensor 2');
+      $("#lasttptime_div").html(String(dtemphmudidata[dtemphmudidata.length-1][0]));
+      $("#lastaqtime_div").html(String(daqdata[daqdata.length-1][0]));
+      drawgaugechart('gauge',tmpoptions,['gauge_temp_div','gauge_humid_div','gauge_airquality_div']);
+      $('#desc_gauge_temp_div').html('Temp');
+      $('#desc_gauge_humid_div').html('Humi');
+      $('#desc_gauge_airquality_div').html('AQ');
+      
+      draworgchart(['org_div']);
+}
+       
+   $(document).ready(function(){
+    //On button click, load new data
+          $("#update").click(function(){
+                var datas=google.script.run.withSuccessHandler(onSuccess).getMyData();
+                 console.log('click');
+          });
+   })
+
+</script>
+
+ </body>
+</html>
